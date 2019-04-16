@@ -114,29 +114,25 @@ using namespace pcl::io;
 using namespace pcl::console;
 
 const int default_number_samples = 500000;
-// const int default_number_samples = 50000;
+// const int default_number_samples = 5000000;
 const float default_leaf_size = 0.01f;
+const float INF = 1000.0f;
 
 int main(int argc, char** argv) {
     // Parse command line arguments
     int SAMPLE_POINTS_ = default_number_samples;
     float leaf_size = default_leaf_size;
-    bool vis_result = !find_switch(argc, argv, "-no_vis_result");
-    const bool write_normals = find_switch(argc, argv, "-write_normals");
+    bool vis_result = true;
+    const bool write_normals = true;
 
-    std::vector<int> obj_file_indices =
-        parse_file_extension_argument(argc, argv, ".obj");
-    if (obj_file_indices.size() != 1) {
-        print_error("Need a single input OBJ file to continue.\n");
-        return (-1);
-    }
+    const char* filename = "models/teapot.obj";
 
     vtkSmartPointer<vtkPolyData> polydata1 =
         vtkSmartPointer<vtkPolyData>::New();
 
     vtkSmartPointer<vtkOBJReader> readerQuery =
         vtkSmartPointer<vtkOBJReader>::New();
-    readerQuery->SetFileName(argv[obj_file_indices[0]]);
+    readerQuery->SetFileName(filename);
     readerQuery->Update();
     polydata1 = readerQuery->GetOutput();
 
@@ -187,33 +183,60 @@ int main(int argc, char** argv) {
         new pcl::PointCloud<pcl::PointNormal>);
     grid_.filter(*voxel_cloud);
 
-    for (int i = 0; i < (*voxel_cloud).size(); i++) {
-        pcl::PointNormal& p = (*voxel_cloud)[i];
-        float zoom = 0.5;
-        p.x += p.normal_x * zoom;
-        p.y += p.normal_y * zoom;
-        p.z += p.normal_z * zoom;
+    pcl::PointCloud<pcl::PointNormal>::Ptr cube_cloud(
+        new pcl::PointCloud<pcl::PointNormal>);
+    pcl::copyPointCloud(*voxel_cloud, *cube_cloud);
+
+    float bounding_min[3] = {INF, INF, INF};
+    float bounding_max[3] = {-INF, -INF, -INF};
+
+    for (auto&& it : *cube_cloud) {
+        for (int i = 0; i < 3; i++) {
+            bounding_min[i] = std::min(bounding_min[i], it.data[i]);
+            bounding_max[i] = std::max(bounding_max[i], it.data[i]);
+        }
     }
+    for (int i = 0; i < cube_cloud->size(); i++) {
+        auto& it = (*cube_cloud)[i];
+        if (it.normal_x == 0 && it.normal_y == 0 && it.normal_z == 0) {
+            cout << "err" << endl;
+        }
+    }
+    std::vector<float> offset(cube_cloud->size());
+    for (int i = 0; i < cube_cloud->size(); i++) {
+        auto& it = (*cube_cloud)[i];
+        float len = INF;
+        for (int j = 0; j < 3; j++) {
+            float move = len;
+            if (it.normal[j] > 0) {
+                move = (bounding_max[j] - it.data[j]) / it.normal[j];
+            } else if (it.normal[j] < 0) {
+                move = (bounding_min[j] - it.data[j]) / it.normal[j];
+            }
+            len = std::min(len, move);
+        }
+        offset[i] = len;
+        for (int j = 0; j < 3; j++) {
+            it.data[j] += offset[i] * it.normal[j];
+        }
+    }
+    // for (int i = 0; i < 100; i++) {
+    //     cout << offset[i] << endl;
+    //     auto it = (*cube_cloud)[i];
+    //     cout << it.x << ' ' << it.y << ' ' << it.z << endl;
+    // }
 
     if (vis_result) {
         visualization::PCLVisualizer vis3("VOXELIZED SAMPLES CLOUD");
         vis3.addPointCloud<pcl::PointNormal>(voxel_cloud);
-        // if (write_normals)
-        //     vis3.addPointCloudNormals<pcl::PointNormal>(voxel_cloud, 1,
-        //     0.02f,
-        //                                                 "cloud_normals");
         vis3.spin();
     }
 
-    if (!write_normals) {
-        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_xyz(
-            new pcl::PointCloud<pcl::PointXYZ>);
-        // Strip uninitialized normals from cloud:
-        pcl::copyPointCloud(*voxel_cloud, *cloud_xyz);
-        // savePCDFileASCII(argv[pcd_file_indices[0]],
-        // *cloud_xyz);
-    } else {
-        // savePCDFileASCII(argv[pcd_file_indices[0]],
-        // *voxel_cloud);
+    if (vis_result) {
+        visualization::PCLVisualizer vis3("CUBIC SAMPLES CLOUD");
+        vis3.addPointCloud<pcl::PointNormal>(cube_cloud);
+        vis3.spin();
     }
+
+    return 0;
 }

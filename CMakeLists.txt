@@ -27,7 +27,8 @@ set(filelists
 	models/cube.obj
 	models/dragon.obj
 	models/fish_512.obj
-	models/suzanne.obj
+    models/suzanne.obj
+    models/teapot.obj
 )
 
 link_directories(${PCL_LIBRARY_DIRS})
