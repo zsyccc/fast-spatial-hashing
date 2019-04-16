@@ -39,6 +39,8 @@ add_definitions(
 
 add_executable(fsh
     main.cpp
+    voxelize.hpp
+    voxelize.cpp
 )
 
 target_link_libraries (fsh ${PCL_LIBRARIES})
