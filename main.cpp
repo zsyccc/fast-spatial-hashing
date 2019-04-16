@@ -18,6 +18,7 @@ using namespace pcl::console;
 
 const int default_number_samples = 500000;
 // const int default_number_samples = 5000000;
+
 const float default_leaf_size = 0.01f;
 const float INF = 1000.0f;
 
@@ -28,7 +29,7 @@ int main(int argc, char** argv) {
     bool vis_result = true;
     const bool write_normals = true;
 
-    const char* filename = "models/teapot.obj";
+    const char* filename = "models/fish_512.obj";
 
     vtkSmartPointer<vtkPolyData> polydata1 =
         vtkSmartPointer<vtkPolyData>::New();
@@ -99,12 +100,12 @@ int main(int argc, char** argv) {
             bounding_max[i] = std::max(bounding_max[i], it.data[i]);
         }
     }
-    for (int i = 0; i < cube_cloud->size(); i++) {
-        auto& it = (*cube_cloud)[i];
-        if (it.normal_x == 0 && it.normal_y == 0 && it.normal_z == 0) {
-            cout << "err" << endl;
-        }
-    }
+
+    // for (int i = 0; i < cube_cloud->size(); i++) {
+    //     auto& it = (*cube_cloud)[i];
+    //     cout << it << endl;
+    // }
+
     std::vector<float> offset(cube_cloud->size());
     for (int i = 0; i < cube_cloud->size(); i++) {
         auto& it = (*cube_cloud)[i];
@@ -123,11 +124,6 @@ int main(int argc, char** argv) {
             it.data[j] += offset[i] * it.normal[j];
         }
     }
-    // for (int i = 0; i < 100; i++) {
-    //     cout << offset[i] << endl;
-    //     auto it = (*cube_cloud)[i];
-    //     cout << it.x << ' ' << it.y << ' ' << it.z << endl;
-    // }
 
     if (vis_result) {
         visualization::PCLVisualizer vis3("VOXELIZED SAMPLES CLOUD");
